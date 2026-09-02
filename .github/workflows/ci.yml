@@ -43,11 +43,13 @@ jobs:
           docker build -t examples-kubernetes-mock-rollfuse-api:local -f Dockerfile.mock-api .
 
       - uses: helm/kind-action@ef37e7f390d99f746eb8b610417061a60e82a6cc # v1.14.0
+        with:
+          cluster_name: rollfuse-example
 
       - name: load images into kind
         run: |
-          kind load docker-image examples-kubernetes-checkout:local
-          kind load docker-image examples-kubernetes-mock-rollfuse-api:local
+          kind load docker-image examples-kubernetes-checkout:local --name rollfuse-example
+          kind load docker-image examples-kubernetes-mock-rollfuse-api:local --name rollfuse-example
 
       - name: kubectl apply -k k8s/
         run: |
