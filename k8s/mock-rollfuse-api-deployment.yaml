@@ -1,0 +1,44 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: mock-rollfuse-api
+  namespace: rollfuse-example
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: mock-rollfuse-api
+  template:
+    metadata:
+      labels:
+        app: mock-rollfuse-api
+    spec:
+      containers:
+        - name: mock-rollfuse-api
+          image: examples-kubernetes-mock-rollfuse-api:local
+          imagePullPolicy: IfNotPresent
+          ports:
+            - containerPort: 8090
+          env:
+            - name: CONFIG_PATH
+              value: /config/checkout-config.json
+          volumeMounts:
+            - name: config
+              mountPath: /config
+              readOnly: true
+          readinessProbe:
+            httpGet:
+              path: /healthz
+              port: 8090
+            initialDelaySeconds: 1
+            periodSeconds: 5
+          livenessProbe:
+            httpGet:
+              path: /healthz
+              port: 8090
+            initialDelaySeconds: 3
+            periodSeconds: 10
+      volumes:
+        - name: config
+          configMap:
+            name: mock-rollfuse-config

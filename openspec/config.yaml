@@ -1,0 +1,23 @@
+schema: spec-driven
+
+# Project context (optional)
+# This is shown to AI when creating artifacts.
+context: |
+  Tech stack: Go (standard library HTTP only), plain Kubernetes manifests
+  + Kustomize (no Helm), Docker.
+
+  Domain: a runnable example repository under the rollfuse GitHub
+  organization — not the rollfuse platform itself. It demonstrates
+  github.com/rollfuse/go-sdk deployed on Kubernetes via a small synthetic
+  checkout service (cmd/checkout) plus a self-contained mock of the
+  rollfuse platform API (cmd/mock-rollfuse-api) whose Configuration comes
+  from a mounted ConfigMap, so a rollout change (edit the ConfigMap,
+  re-apply) takes effect live, without restarting any checkout Pod — the
+  central thing this repo demonstrates. Verified against a real kind
+  cluster, including that specific live-update claim (see
+  .github/workflows/ci.yml).
+
+  This repo has no behavioral contract of its own worth a formal
+  openspec/specs/ capability — it's a demo, kept intentionally small.
+  OpenSpec here is for planning nontrivial changes to the demo itself,
+  not for specifying product behavior.

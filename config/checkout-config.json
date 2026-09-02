@@ -1,0 +1,25 @@
+{
+  "environment_id": "env_demo",
+  "version": 1,
+  "flags": [
+    {
+      "flag_key": "checkout-redesign",
+      "enabled": true,
+      "default_variation": "off",
+      "variations": [
+        { "key": "off", "value": false },
+        { "key": "on", "value": true }
+      ],
+      "rules": [
+        {
+          "outcome": {
+            "rollout": [
+              { "variation_key": "on", "percentage": 50 },
+              { "variation_key": "off", "percentage": 50 }
+            ]
+          }
+        }
+      ]
+    }
+  ]
+}

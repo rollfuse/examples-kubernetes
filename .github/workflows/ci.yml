@@ -1,0 +1,83 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+concurrency:
+  group: ci-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+jobs:
+  build:
+    name: build, vet
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+
+      - uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e # v7.0.0
+        with:
+          go-version-file: go.mod
+
+      - run: go build ./...
+      - run: go vet ./...
+      - run: gofmt -l . | tee /tmp/unformatted.txt; test ! -s /tmp/unformatted.txt
+
+  kind-smoke-test:
+    name: deploy to kind, exercise the rollout
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+
+      - name: build images
+        run: |
+          docker build -t examples-kubernetes-checkout:local -f Dockerfile.checkout .
+          docker build -t examples-kubernetes-mock-rollfuse-api:local -f Dockerfile.mock-api .
+
+      - uses: helm/kind-action@ef37e7f390d99f746eb8b610417061a60e82a6cc # v1.14.0
+
+      - name: load images into kind
+        run: |
+          kind load docker-image examples-kubernetes-checkout:local
+          kind load docker-image examples-kubernetes-mock-rollfuse-api:local
+
+      - name: kubectl apply -k k8s/
+        run: |
+          kubectl apply -k k8s/
+          kubectl -n rollfuse-example wait --for=condition=available --timeout=90s deployment --all
+
+      - name: exercise /checkout (flag enabled)
+        run: |
+          kubectl -n rollfuse-example port-forward svc/checkout 8080:8080 &
+          for i in $(seq 1 15); do curl -fsS http://localhost:8080/healthz && break; sleep 1; done
+          curl -fsS "http://localhost:8080/checkout?user=ci-smoke-test" | tee /dev/stderr | grep -q '"variation_key"'
+
+      - name: disable the flag via the ConfigMap and verify it takes effect live, without restarting checkout
+        run: |
+          sed 's/"enabled": true/"enabled": false/' k8s/mock-rollfuse-api-configmap.yaml | kubectl apply -f -
+          # kubelet's ConfigMap volume sync + the SDK's Configuration
+          # refresh (default 30s) both need time; this loop polls instead
+          # of guessing a fixed sleep.
+          for i in $(seq 1 24); do
+            reason="$(curl -fsS "http://localhost:8080/checkout?user=ci-smoke-test" | grep -o '"reason":"[^"]*"')"
+            echo "reason=$reason"
+            [ "$reason" = '"reason":"default_disabled"' ] && exit 0
+            sleep 5
+          done
+          echo "flag disable via ConfigMap never took effect within 2 minutes" >&2
+          exit 1
+
+      - name: pod/deployment state (always, for debugging)
+        if: always()
+        run: |
+          kubectl -n rollfuse-example get all
+          kubectl -n rollfuse-example logs deploy/checkout --all-containers --tail=100
+          kubectl -n rollfuse-example logs deploy/mock-rollfuse-api --all-containers --tail=100

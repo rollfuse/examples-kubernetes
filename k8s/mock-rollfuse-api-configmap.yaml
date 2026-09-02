@@ -1,0 +1,42 @@
+# The mock platform API's Configuration fixture, mounted as a file — see
+# mock-rollfuse-api-deployment.yaml's volumeMounts. This is the piece
+# meant to be edited to see a rollout change take effect: bump the
+# "percentage" split (or flip "enabled") and re-apply, no image rebuild,
+# no checkout restart.
+#
+# Against a real rollfuse environment, this ConfigMap doesn't exist —
+# rollfuse's own API serves live Configuration instead. It exists here
+# only because mock-rollfuse-api-deployment.yaml stands in for that API,
+# so this example runs on a bare kind cluster with no rollfuse account.
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: mock-rollfuse-config
+  namespace: rollfuse-example
+data:
+  checkout-config.json: |
+    {
+      "environment_id": "env_demo",
+      "version": 1,
+      "flags": [
+        {
+          "flag_key": "checkout-redesign",
+          "enabled": true,
+          "default_variation": "off",
+          "variations": [
+            { "key": "off", "value": false },
+            { "key": "on", "value": true }
+          ],
+          "rules": [
+            {
+              "outcome": {
+                "rollout": [
+                  { "variation_key": "on", "percentage": 50 },
+                  { "variation_key": "off", "percentage": 50 }
+                ]
+              }
+            }
+          ]
+        }
+      ]
+    }

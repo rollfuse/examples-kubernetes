@@ -1,0 +1,11 @@
+FROM golang:1.26-alpine AS build
+WORKDIR /src
+COPY go.mod go.sum ./
+RUN go mod download
+COPY . .
+RUN CGO_ENABLED=0 go build -o /out/mock-rollfuse-api ./cmd/mock-rollfuse-api
+
+FROM gcr.io/distroless/static-debian12
+COPY --from=build /out/mock-rollfuse-api /mock-rollfuse-api
+EXPOSE 8090
+ENTRYPOINT ["/mock-rollfuse-api"]

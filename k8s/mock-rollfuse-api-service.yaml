@@ -1,0 +1,11 @@
+apiVersion: v1
+kind: Service
+metadata:
+  name: mock-rollfuse-api
+  namespace: rollfuse-example
+spec:
+  selector:
+    app: mock-rollfuse-api
+  ports:
+    - port: 8090
+      targetPort: 8090

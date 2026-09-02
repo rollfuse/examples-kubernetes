@@ -1,0 +1,56 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: checkout
+  namespace: rollfuse-example
+spec:
+  replicas: 2
+  selector:
+    matchLabels:
+      app: checkout
+  template:
+    metadata:
+      labels:
+        app: checkout
+    spec:
+      containers:
+        - name: checkout
+          image: examples-kubernetes-checkout:local
+          imagePullPolicy: IfNotPresent
+          ports:
+            - containerPort: 8080
+          env:
+            - name: ROLLFUSE_API_BASE_URL
+              value: http://mock-rollfuse-api:8090
+            - name: ROLLFUSE_SERVICE_CREDENTIAL
+              valueFrom:
+                secretKeyRef:
+                  name: rollfuse-credential
+                  key: ROLLFUSE_SERVICE_CREDENTIAL
+            - name: POD_NAME
+              valueFrom:
+                fieldRef:
+                  fieldPath: metadata.name
+          # readinessProbe gates traffic on client.Start() having already
+          # completed (see cmd/checkout/main.go — the server only starts
+          # listening after the first successful Configuration fetch), so
+          # a pod never receives traffic before it can actually evaluate
+          # the flag.
+          readinessProbe:
+            httpGet:
+              path: /readyz
+              port: 8080
+            initialDelaySeconds: 1
+            periodSeconds: 5
+          livenessProbe:
+            httpGet:
+              path: /healthz
+              port: 8080
+            initialDelaySeconds: 3
+            periodSeconds: 10
+          resources:
+            requests:
+              cpu: 10m
+              memory: 32Mi
+            limits:
+              memory: 64Mi
